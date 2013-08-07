@@ -1,0 +1,5 @@
+build/
+*.swp
+*.swo
+.lock-wscript
+node_modules
