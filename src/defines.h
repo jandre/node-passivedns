@@ -26,6 +26,60 @@ extern "C" {
 
 #include <pcap.h>
 
+
+    /* Default flags for types to handle */
+#define DNS_CHK_AAAA       0x0001
+#define DNS_CHK_A          0x0002
+#define DNS_CHK_PTR        0x0004
+#define DNS_CHK_CNAME      0x0008
+#define DNS_CHK_DNAME      0x0010
+#define DNS_CHK_NAPTR      0x0020
+#define DNS_CHK_RP         0x0040
+#define DNS_CHK_SRV        0x0080
+#define DNS_CHK_TXT        0x0100
+#define DNS_CHK_SOA        0x0200
+#define DNS_CHK_MX         0x0400
+#define DNS_CHK_NS         0x0800
+#define DNS_CHK_ALL        0x8000
+    /* Default flags for Server Errors to handle */
+#define DNS_SE_CHK_FORMERR  0x0001
+#define DNS_SE_CHK_SERVFAIL 0x0002
+#define DNS_SE_CHK_NXDOMAIN 0x0004
+#define DNS_SE_CHK_NOTIMPL  0x0008
+#define DNS_SE_CHK_REFUSED  0x0010
+#define DNS_SE_CHK_YXDOMAIN 0x0020
+#define DNS_SE_CHK_YXRRSET  0x0040
+#define DNS_SE_CHK_NXRRSET  0x0080
+#define DNS_SE_CHK_NOTAUTH  0x0100
+#define DNS_SE_CHK_NOTZONE  0x0200
+#define DNS_SE_CHK_ALL      0x8000
+
+    // Flag for indicating an NXDOMAIN
+#define DNS_NXDOMAIN       0x01
+
+    /* To avoid spaming the logfile with duplicate dns info 
+     * we only print a dns record one time each 24H. This way
+     * you will get a last seen timestamp update once a day
+     * at least. If the record changes, it will be classified
+     * as a new record, and printent. If a record expires and
+     * it has been updated since last_print time, it will be
+     * printed again.
+     */
+#define DNSPRINTTIME          86400    /* 24H = 86400 sec */
+
+    /* How long we should hold a dns record in our internal
+     * cache. It should preferably not be less than DNSPRINTTIME,
+     * as that will make it possible to get more than one instance
+     * of the record each day in the logfile. That said, setting
+     * DNSCACHETIMEOUT to DNSPRINTTIME/2 etc, might help memory
+     * usage if that is a concern AND you probably will get a better
+     * granularity on the DNS time stamps in the log file.
+     * My recomendations are DNSPRINTTIME == 24h and
+     * DNSCACHETIMEOUT == 12h.
+     */
+#define DNSCACHETIMEOUT       43200    /* 12h=43200sec */
+
+
 /*  I N C L U D E S  **********************************************************/
 
 /*  D E F I N E S  ************************************************************/
@@ -271,7 +325,7 @@ typedef struct _connection {
 #define ISSET_SERVICE_UNKNOWN(pi)        (pi->cxt->check & CXT_SERVICE_UNKNOWN_SET)
 #define ISSET_CLIENT_UNKNOWN(pi)         (pi->cxt->check & CXT_CLIENT_UNKNOWN_SET)
 
-#ifdef OSX
+#if defined(OSX) || defined(__APPLE__)
 // sidds darwin ports
 #define IP4ADDR(ip) (ip)->__u6_addr.__u6_addr32[0]
 
@@ -386,17 +440,12 @@ typedef struct _packetinfo {
     ip4_header      *ip4;           /* IPv4 header struct pointer */
     ip6_header      *ip6;           /* IPv6 header struct pointer */
     uint16_t        packet_bytes;   /* Lenght of IP payload in packet */
-    //struct in6_addr ip_src;         /* source address */
-    //struct in6_addr ip_dst;         /* destination address */
     uint16_t        s_port;         /* source port */
     uint16_t        d_port;         /* destination port */
     uint8_t         proto;          /* IP protocoll type */
     uint8_t         sc;             /* SC_SERVER or SC_CLIENT */
     tcp_header      *tcph;          /* tcp header struct pointer */
     udp_header      *udph;          /* udp header struct pointer */
-    //icmp_header     *icmph;         /* icmp header struct pointer */
-    //icmp6_header    *icmp6h;        /* icmp6 header struct pointer */
-    //gre_header      *greh;          /* GRE header struct pointer */
     uint16_t        gre_hlen;       /* Length of dynamic GRE header length */
     const uint8_t   *end_ptr;       /* Paranoid end pointer of packet */
     const uint8_t   *payload;       /* char pointer to transport payload */
@@ -404,8 +453,6 @@ typedef struct _packetinfo {
     uint32_t        our;            /* Is the asset in our defined network */
     uint8_t         up;             /* Set if the asset has been updated */
     connection      *cxt;           /* pointer to the cxt for this packet */
-    //struct _asset    *asset;         /* pointer to the asset for this (src) packet */
-    //enum { SIGNATURE, FINGERPRINT } type;
 } packetinfo;
 
 // packetinfo accessor macros
@@ -482,44 +529,6 @@ typedef struct _pdns_stat {
 #define INTERRUPT_SESSION  0x02
 #define INTERRUPT_DNS      0x04
 
-typedef struct _globalconfig {
-    struct pcap_stat    ps;              /* libpcap stats */
-    pdns_stat           p_s;             /* pdns stats */
-    struct bpf_program  cfilter;         /* */
-    bpf_u_int32         net_mask;        /* */
-    uint8_t     intr_flag;
-    uint8_t     inpacket;
-    
-    time_t       dnslastchk;             /* Timestamp for last dns cache expiration check */
-    struct timeval tstamp;               /* Current timestamp from packet-header */
-    uint8_t      cflags;                 /* config flags */
-    uint8_t      verbose;                /* Verbose or not */
-    uint8_t      print_updates;          /* Prints updates */
-    uint8_t      use_syslog;             /* Use syslog or not */
-    uint8_t      setfilter;
-    uint8_t      drop_privs_flag;        /* Flag marking to drop privs */
-    uint8_t      chroot_flag;            /* Flag for going chroot */
-    uint8_t      daemon_flag;            /* Flag for going daemon */
-    uint32_t     dns_filter;             /* Flags for DNS RR Type checks to do */
-    uint32_t     dns_filter_error;       /* Flags for DNS Server Error Types to check */
-    uint32_t     payload;                /* dump how much of the payload ?  */
-    uint32_t     curcxt;
-    uint32_t     llcxt;
-    uint64_t     mem_limit_max;          /* Try soft limit memory use */
-    uint64_t     mem_limit_size;         /* Current memory size */
-    uint32_t     dns_records;            /* total number of DNS records in memory */
-    uint32_t     dns_assets;             /* total number of DNS assets in memory */
-    uint64_t     cxtrackerid;            /* cxtracker ID counter */
-    char         errbuf[PCAP_ERRBUF_SIZE];   /**/
-    char        *user_filter;            /**/
-    char        *net_ip_string;          /**/
-    char        *pcap_file;              /* Filename to pcap too read */
-    char        *dev;                    /* Device name to use for sniffing */
-    char        *dpath;                  /* ... ??? seriously ???... */
-    uint32_t     dnsprinttime;           /* Minimum time between printing duplicate dns info */
-    uint32_t     dnscachetimeout;        /* Time before a dns record/asset times out if not updated */
-} globalconfig;
-
 #define ISSET_CONFIG_VERBOSE(config)    ((config).cflags & CONFIG_VERBOSE)
 #define ISSET_CONFIG_UPDATES(config)    ((config).cflags & CONFIG_UPDATES)
 #define ISSET_CONFIG_SYSLOG(config)     ((config).cflags & CONFIG_SYSLOG)
@@ -530,17 +539,17 @@ typedef struct _globalconfig {
 #define ISSET_INTERRUPT_DNS(config)     ((config).intr_flag & INTERRUPT_DNS)
 
 #define plog(fmt, ...) do{ fprintf(stdout, (fmt), ##__VA_ARGS__); }while(0)
-#define olog(fmt, ...) do{ if(!(ISSET_CONFIG_QUIET(config))) fprintf(stdout, (fmt), ##__VA_ARGS__); }while(0)
+#define olog(fmt, ...) do{ fprintf(stdout, (fmt), ##__VA_ARGS__); }while(0)
 
-// #ifdef DEBUG
-// #define dlog(fmt, ...) do { fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);} while(0)
-// #define vlog(v, fmt, ...) do{ if(DEBUG == v) fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__); }while(0)
-// #define elog(fmt, ...) fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);
-// #else
+#ifdef DEBUG
+#define dlog(fmt, ...) do { fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);} while(0)
+#define vlog(v, fmt, ...) do{ if(DEBUG == v) fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__); }while(0)
+#define elog(fmt, ...) fprintf(stderr, ("[%s:%d(%s)] " fmt), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);
+#else
 #define elog(fmt, ...) fprintf(stderr, (fmt), ##__VA_ARGS__);
 #define dlog(fmt, ...) do { ; } while(0)
 #define vlog(fmt, ...) do { ; } while(0)
-// #endif
+#endif
 
 int cxt_update_client(connection *cxt, packetinfo *pi);
 int cxt_update_server(connection *cxt, packetinfo *pi);

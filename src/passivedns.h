@@ -8,6 +8,7 @@
 #include "pcap.h"
 #include "worker.h"
 #include "dns.h"
+#include "config.h"
 
 using namespace v8;
 using namespace node;
@@ -26,8 +27,11 @@ class PassiveDns : public node::ObjectWrap {
 
     public:
 
-        PassiveDns(); 
-        virtual ~PassiveDns() {};
+        PassiveDns(globalconfig *); 
+
+        virtual ~PassiveDns() {
+            delete _config;
+        };
 
         static void Init(v8::Handle<v8::Object> exports);
         void Start();

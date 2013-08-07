@@ -48,6 +48,8 @@ class Sessions {
         };
 
         ~Sessions() { 
+            Flush();
+            dlog("[*] Deleting sessions \n");
             delete _dns;
         };
 
@@ -58,18 +60,15 @@ class Sessions {
 
             set_end_sessions();
 
-            if ( (now_t - _config->dnslastchk) >= 600 ) {
+            if ( (now_t - _config->dnslastchk) >= 600) {
                 set_end_dns_records();
             }
-
-            // XXX: flush all packets
         };
 
         void OnPacket(const struct pcap_pkthdr *pheader,
                 const u_char * packet)
-        {
 
-            // XXX: count elsewhere _config->p_s.got_packets++;
+            // XXX: count elsewhere? _config->p_s.got_packets++;
             packetinfo pstruct = {0};
             packetinfo *pi = &pstruct;
             pi->packet = packet;

@@ -31,9 +31,6 @@ PcapWorker::PcapWorker(PassiveDns *main, globalconfig *config) :
     _poll_handle(NULL),
     _pcap_handle(NULL)
 {
-    _device = (char *)"eth0";
-    _berkeley_filter = (char *)"port 53";
-
     _pcap_loop = uv_loop_new();
     _pcap_worker_message.worker = this;
     _pcap_loop_signal.data = &_pcap_worker_message; 
@@ -85,12 +82,25 @@ void PcapWorker::Start() {
 
     char error[PCAP_ERRBUF_SIZE];
 
-    _pcap_handle = pcap_open_live(_device, SNAPLENGTH, 1, 500, &error[0]);
+    printf("XXX COMPING WITH FILTER %s %s\n", _config->interface.c_str(), _config->pcap_filter.c_str());
+    _pcap_handle = pcap_open_live(_config->interface.c_str(), SNAPLENGTH, 1, 500, &error[0]);
 
     if (_pcap_handle == NULL) {
         printf("[XXX] Unable to open pcap\n");
         return;
     }
+
+    // if ((pcap_compile(_pcap_handle, &_compiled_filter, _config->pcap_filter.c_str(), 
+                    // 1, PCAP_NETMASK_UNKNOWN)) == -1) {
+        // // olog("[XXX] Error pcap_compile user_filter: %s\n", pcap_geterr(_pcap_handle));
+        // printf("[XXX] Unable to open pcap\n");
+        // return;
+    // }
+
+    // if (pcap_setfilter(_pcap_handle, &_compiled_filter)) {
+        // printf("[XXX] Unable to open pcap\n");
+       // // olog("[*] Unable to set pcap filter!  %s", pcap_geterr(_pcap_handle));
+    // }
     
     // int res = pcap_datalink(_pcap_handle);
 

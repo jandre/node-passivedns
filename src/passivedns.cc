@@ -29,7 +29,6 @@ using namespace v8;
 
 #define _RECORD_QUEUE_SIZE 512
 
-globalconfig config;
 // Pcap Callbacks
 
 void launch_thread(void * context) {
@@ -44,35 +43,16 @@ void main_loop_on_signal(uv_async_t *handle, int status /*UNUSED*/) {
    dns->MainLoopOnSignal();
 };
 
-void initialize_config(globalconfig * configuration) {
 
-  memset(configuration, 0, sizeof(globalconfig));
-    //set_defaultconfiguration_options();
-  configuration->inpacket = configuration->intr_flag = 0;
-  configuration->dnslastchk = 0;
-  configuration->mem_limit_max = (256 * 1024 * 1024); // 256 MB - default try to limit dns caching to this
-  configuration->dnsprinttime = DNSPRINTTIME;
-  configuration->dnscachetimeout =  DNSCACHETIMEOUT;
-  configuration->dns_filter = 0;
-  configuration->dns_filter |= DNS_CHK_A;
-  configuration->dns_filter |= DNS_CHK_AAAA;
-  configuration->dns_filter |= DNS_CHK_PTR;
-  configuration->dns_filter |= DNS_CHK_CNAME;
-  configuration->dns_filter |= DNS_CHK_DNAME;
-  configuration->dns_filter |= DNS_CHK_NAPTR;
-  configuration->dns_filter |= DNS_CHK_RP;
-  configuration->dns_filter |= DNS_CHK_SRV;
-
-}; 
+ 
 
 // Passive Dns Definitions
 
-PassiveDns::PassiveDns() : _config(&config),
+PassiveDns::PassiveDns(globalconfig * options) : _config(options),
   _queue(_RECORD_QUEUE_SIZE), 
   _worker(NULL),
   _passive_dns_message(this)
 {
-  initialize_config(this->_config);
   main_loop_signal.data = (void *)&(this->_passive_dns_message);  
 };
 
@@ -207,13 +187,14 @@ v8::Handle<v8::Value> PassiveDns::New(const v8::Arguments& args) {
 
   HandleScope scope;
 
-  PassiveDns * obj = new PassiveDns(); // XXX: pass in interface and other options
-
-  if (args.Length() == 1 && args[0]->IsFunction()) {
-    obj->callback = Persistent<Function>::New(Handle<Function>::Cast(args[0]));
+  if (args.Length() == 2 && args[0]->IsObject() && args[1]->IsFunction()) {
+    globalconfig * config = new globalconfig(*(args[0]->ToObject()));
+    PassiveDns * obj = new PassiveDns(config); 
+    obj->callback = Persistent<Function>::New(Handle<Function>::Cast(args[1]));
+    obj->Wrap(args.This());
+  } else {
+    return ThrowException(Exception::Error(String::New("Invalid arguments")));
   }
-
-  obj->Wrap(args.This());
 
   return scope.Close(args.This());
 }

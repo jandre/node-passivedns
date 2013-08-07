@@ -54,13 +54,10 @@ class PcapWorker {
         uv_poll_t * _poll_handle;
         pcap_t * _pcap_handle;
         worker_message_t _pcap_worker_message;
+        bpf_program _compiled_filter;
 
         uv_timer_t _flush_timer;
 
-        char * _berkeley_filter;
-        char * _device;
-
-        void Flush();
         void StartTimer();
         void StopTimer();
 

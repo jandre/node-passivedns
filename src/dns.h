@@ -24,61 +24,10 @@
 
 #include <ldns/ldns.h>
 #include "hash.h"
+#include "config.h"
 
 extern "C" {
 
-
-    /* Default flags for types to handle */
-#define DNS_CHK_AAAA       0x0001
-#define DNS_CHK_A          0x0002
-#define DNS_CHK_PTR        0x0004
-#define DNS_CHK_CNAME      0x0008
-#define DNS_CHK_DNAME      0x0010
-#define DNS_CHK_NAPTR      0x0020
-#define DNS_CHK_RP         0x0040
-#define DNS_CHK_SRV        0x0080
-#define DNS_CHK_TXT        0x0100
-#define DNS_CHK_SOA        0x0200
-#define DNS_CHK_MX         0x0400
-#define DNS_CHK_NS         0x0800
-#define DNS_CHK_ALL        0x8000
-    /* Default flags for Server Errors to handle */
-#define DNS_SE_CHK_FORMERR  0x0001
-#define DNS_SE_CHK_SERVFAIL 0x0002
-#define DNS_SE_CHK_NXDOMAIN 0x0004
-#define DNS_SE_CHK_NOTIMPL  0x0008
-#define DNS_SE_CHK_REFUSED  0x0010
-#define DNS_SE_CHK_YXDOMAIN 0x0020
-#define DNS_SE_CHK_YXRRSET  0x0040
-#define DNS_SE_CHK_NXRRSET  0x0080
-#define DNS_SE_CHK_NOTAUTH  0x0100
-#define DNS_SE_CHK_NOTZONE  0x0200
-#define DNS_SE_CHK_ALL      0x8000
-
-    // Flag for indicating an NXDOMAIN
-#define DNS_NXDOMAIN       0x01
-
-    /* To avoid spaming the logfile with duplicate dns info 
-     * we only print a dns record one time each 24H. This way
-     * you will get a last seen timestamp update once a day
-     * at least. If the record changes, it will be classified
-     * as a new record, and printent. If a record expires and
-     * it has been updated since last_print time, it will be
-     * printed again.
-     */
-#define DNSPRINTTIME          86400    /* 24H = 86400 sec */
-
-    /* How long we should hold a dns record in our internal
-     * cache. It should preferably not be less than DNSPRINTTIME,
-     * as that will make it possible to get more than one instance
-     * of the record each day in the logfile. That said, setting
-     * DNSCACHETIMEOUT to DNSPRINTTIME/2 etc, might help memory
-     * usage if that is a concern AND you probably will get a better
-     * granularity on the DNS time stamps in the log file.
-     * My recomendations are DNSPRINTTIME == 24h and
-     * DNSCACHETIMEOUT == 12h.
-     */
-#define DNSCACHETIMEOUT       43200    /* 12h=43200sec */
 
     /* HASH: 
      *     [DOMAIN_HASH_BUCKET]_

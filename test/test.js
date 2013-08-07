@@ -1,11 +1,12 @@
 
-try {
-  PassiveDns = require('../build/Debug/passivedns.node').PassiveDns;
-} catch (err) {
-  PassiveDns = require('../build/Release/passivedns.node').PassiveDns;
-}
+var PassiveDns = require('../lib/index');
 
-var dns = new PassiveDns(function(data) {
+var dns = new PassiveDns({
+  interface: "eth0",
+  pcap_filter: "port 53"
+});
+
+dns.on('data',function(data) {
 
   console.log("XXX got data", data);
 
